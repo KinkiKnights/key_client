@@ -1,3 +1,4 @@
+import sys
 import socket
 import struct
 import threading
@@ -39,13 +40,14 @@ keys_pressed = [False] * 256
 mouse_dx = 0
 mouse_dy = 0
 key_ipaddr = ""
+is_fin = False
 
     # ウィンドウを作成
 window = pyglet.window.Window(400, 100, "FPS Mouse Tracking", resizable=False)
 window.set_exclusive_mouse(True)
 @window.event
 def on_key_press(symbol, modifiers):
-    global keys_pressed
+    global keys_pressed, key_sender
     """キーが押されたときに呼び出される"""
     if 0 <= symbol < 256:
         keys_pressed[symbol] = True
@@ -87,18 +89,19 @@ def on_draw():
     )
     label_key.draw()
 async def keySender():
-    global key_ipaddr, keys_pressed, mouse_dx, mouse_dy
+    global key_ipaddr, keys_pressed, mouse_dx, mouse_dy, key_sender
     while True:
         try:
             async with websockets.connect("ws://"+key_ipaddr+":8765/key") as websocket:
+                print("接続完了")
                 while(True):
                     bool_array_str = "".join(["1" if b else "0" for b in keys_pressed])
                     data = f"{mouse_dx}:{mouse_dy}:{bool_array_str}"
                     await websocket.send(data)
                     await asyncio.sleep(0.05)
-        except (websockets.exceptions.ConnectionClosedError, websockets.exceptions.WebSocketException) as e:
+        except:
             # 接続が切れた場合、2秒待ってから再接続
-            print(f"接続が切れました。再接続を試みます... エラー: {e}")
+            print("接続が切れました。再接続を試みます...")
             await asyncio.sleep(2)
 def keySenderStart():
     asyncio.run(keySender())
